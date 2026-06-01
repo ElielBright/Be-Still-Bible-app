@@ -1,0 +1,21 @@
+{
+  "name": "Edify - Bible Study Companion",
+  "short_name": "Edify",
+  "description": "A distraction-free Bible study companion that connects scripture to sermons, books, and Spirit-led insight.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1b4b",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
