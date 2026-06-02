@@ -185,12 +185,12 @@ export function YouTubePlayer({ videoId, title, preacher, mode, onClose }: YouTu
     }
   }
 
-  // ── Download ──────────────────────────────────────────────────────────────
+  // ── Download MP3 (server-side conversion) ─────────────────────────────────
   const handleDownload = () => {
-    if (!audioUrl) return
+    const downloadUrl = `/api/audio/download?videoId=${videoId}&title=${encodeURIComponent(audioTitle || title)}`
     const a = document.createElement("a")
-    a.href = audioUrl
-    a.download = `${(audioTitle || title).replace(/[^a-z0-9]/gi, "_")}.webm`
+    a.href = downloadUrl
+    a.download = `${(audioTitle || title).replace(/[^a-z0-9]/gi, "_")}.mp3`
     a.target = "_blank"
     a.rel = "noopener noreferrer"
     document.body.appendChild(a)

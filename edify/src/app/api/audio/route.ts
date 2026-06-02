@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
+import { execFile } from "child_process"
+import { promisify } from "util"
+import { mkdtempSync, rmSync, existsSync } from "fs"
+import { join } from "path"
+import { tmpdir } from "os"
+import { readFile } from "fs/promises"
 
 export const runtime = "nodejs"
 
@@ -8,16 +14,34 @@ const BROWSER_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
 }
 
+const exec = promisify(execFile)
+
+// ── Find yt-dlp on the system ────────────────────────────────────────────────
+function findYtDlp(): string {
+  const candidates = [
+    "yt-dlp",
+    join(process.env.APPDATA || "", "Python", "Python314", "Scripts", "yt-dlp.exe"),
+    join(process.env.LOCALAPPDATA || "", "Programs", "yt-dlp", "yt-dlp.exe"),
+  ]
+  return candidates.find((c) => existsSync(c)) || "yt-dlp"
+}
+
+function findFfmpeg(): string {
+  // Check npm-installed ffmpeg binary
+  const npmFfmpeg = join(process.cwd(), "node_modules", "@ffmpeg-installer", "win32-x64", "ffmpeg.exe")
+  if (existsSync(npmFfmpeg)) return npmFfmpeg
+  // Fallback to PATH
+  return "ffmpeg"
+}
+
 // ── Method 1: yt-dlp (most reliable) ─────────────────────────────────────────
 async function extractWithYtDlp(
   videoId: string
 ): Promise<{ audioUrl: string; title: string } | null> {
-  const { execFile } = await import("child_process")
-  const { promisify } = await import("util")
-
+  const ytdl = findYtDlp()
   try {
-    const { stdout } = await promisify(execFile)(
-      "yt-dlp",
+    const { stdout } = await exec(
+      ytdl,
       [
         "--no-playlist",
         "--dump-json",
@@ -30,12 +54,47 @@ async function extractWithYtDlp(
     const info = JSON.parse(stdout)
     if (!info.url) return null
     return { audioUrl: info.url, title: info.title ?? videoId }
-  } catch {
+  } catch (err) {
+    console.error(`[audio] yt-dlp failed for ${videoId}:`, err)
     return null
   }
 }
 
-// ── Method 2: @distube/ytdl-core fallback ────────────────────────────────────
+// ── Method 2: yt-dlp download + ffmpeg → MP3 ─────────────────────────────────
+async function downloadAsMp3(
+  videoId: string,
+  title: string
+): Promise<{ filePath: string; fileName: string } | null> {
+  const ytdl = findYtDlp()
+  const ffmpeg = findFfmpeg()
+  const tmpDir = mkdtempSync(join(tmpdir(), "edify-audio-"))
+  const outPath = join(tmpDir, `${videoId}.mp3`)
+
+  try {
+    await exec(
+      ytdl,
+      [
+        "--no-playlist",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "--ffmpeg-location", ffmpeg,
+        "-o", outPath,
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ],
+      { timeout: 120000 }
+    )
+    const safeName = (title || videoId).replace(/[^a-z0-9]/gi, "_") + ".mp3"
+    return { filePath: outPath, fileName: safeName }
+  } catch (err) {
+    console.error(`[audio] MP3 download failed for ${videoId}:`, err)
+    // Clean up
+    try { rmSync(tmpDir, { recursive: true, force: true }) } catch {}
+    return null
+  }
+}
+
+// ── Method 3: @distube/ytdl-core fallback ────────────────────────────────────
 async function extractWithYtdlCore(
   videoId: string
 ): Promise<{ audioUrl: string; mimeType: string; title: string } | null> {
@@ -47,7 +106,6 @@ async function extractWithYtdlCore(
       requestOptions: { headers: BROWSER_HEADERS },
     })
 
-    // Sort by bitrate, prefer audio-only over muxed
     const formats = info.formats
       .filter((f) => f.hasAudio && f.url)
       .sort((a, b) => {
@@ -64,11 +122,13 @@ async function extractWithYtdlCore(
       mimeType: format.mimeType ?? "audio/webm",
       title: info.videoDetails.title,
     }
-  } catch {
+  } catch (err) {
+    console.error(`[audio] ytdl-core failed for ${videoId}:`, err)
     return null
   }
 }
 
+// ── POST: Extract audio URL for streaming ────────────────────────────────────
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const videoId = (body.videoUrl as string)?.match(/(?:v=|\/)([\w-]{11})/)?.[1]
@@ -77,9 +137,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 })
   }
 
-  console.log(`[audio] Extracting videoId=${videoId}`)
+  console.log(`[audio] Extracting videoId=${videoId}, mode=stream`)
 
-  // Try yt-dlp first — if installed it almost always works
+  // Try yt-dlp first
   const ytdlpResult = await extractWithYtDlp(videoId)
   if (ytdlpResult) {
     console.log(`[audio] yt-dlp succeeded for ${videoId}`)
@@ -97,8 +157,46 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(
     {
       error:
-        "Could not extract audio. Install yt-dlp for reliable extraction: run  winget install yt-dlp.yt-dlp  in a terminal, then restart the dev server.",
+        "Could not extract audio. Make sure yt-dlp is installed and accessible.",
     },
     { status: 500 }
   )
+}
+
+// ── GET: Download audio as MP3 file ──────────────────────────────────────────
+export async function GET(request: NextRequest) {
+  const videoId = request.nextUrl.searchParams.get("videoId")
+  const title = request.nextUrl.searchParams.get("title") || "audio"
+
+  if (!videoId) {
+    return NextResponse.json({ error: "Missing videoId parameter" }, { status: 400 })
+  }
+
+  console.log(`[audio] Downloading MP3 for videoId=${videoId}`)
+
+  // First get the title from yt-dlp
+  const info = await extractWithYtDlp(videoId)
+  const videoTitle = info?.title || title
+
+  // Download and convert to MP3
+  const mp3 = await downloadAsMp3(videoId, videoTitle)
+  if (!mp3) {
+    return NextResponse.json(
+      { error: "Failed to download and convert audio to MP3. Make sure yt-dlp and ffmpeg are available." },
+      { status: 500 }
+    )
+  }
+
+  // Read the file and return it, then clean up
+  const buffer = await readFile(mp3.filePath)
+  const dir = mp3.filePath.replace(/\\[^\\]+$/, "")
+  rmSync(dir, { recursive: true, force: true })
+
+  return new NextResponse(buffer, {
+    headers: {
+      "Content-Type": "audio/mpeg",
+      "Content-Disposition": `attachment; filename="${mp3.fileName}"`,
+      "Content-Length": buffer.length.toString(),
+    },
+  })
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY
-const OLLAMA_ENDPOINT = process.env.OLLAMA_ENDPOINT || "https://api.ollama.com/v1"
+const OLLAMA_API_KEY = process.env.NEXT_PUBLIC_OLLAMA_API_KEY
+const OLLAMA_ENDPOINT = process.env.NEXT_PUBLIC_OLLAMA_ENDPOINT || "https://api.ollama.com/v1"
 
 export async function POST(request: NextRequest) {
   try {

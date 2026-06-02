@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Send, Loader2 } from "lucide-react"
-import { chatWithAI, type AIChatMessage } from "@/lib/ollama"
+import type { AIChatMessage } from "@/lib/ollama"
 import { cacheAIResponse, getCachedAIResponse } from "@/lib/offline"
 
 const QUICK_PROMPTS = [
@@ -50,18 +50,25 @@ export function VerseChat({ book, chapter, verse, verseText, onClose }: VerseCha
     setInput("")
     setLoading(true)
 
-    const response = await chatWithAI(newMessages, {
-      book,
-      chapter,
-      verse,
-      text: verseText,
-    })
-
-    setMessages([...newMessages, { role: "assistant", content: response }])
-    setLoading(false)
-
-    const verseKey = `${book}:${chapter}:${verse}`
-    await cacheAIResponse(verseKey, response)
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages,
+          verseContext: { book, chapter, verse, text: verseText },
+        }),
+      })
+      const data = await res.json()
+      const response = data.response || "Sorry, I couldn't generate a response."
+      setMessages([...newMessages, { role: "assistant", content: response }])
+      const verseKey = `${book}:${chapter}:${verse}`
+      await cacheAIResponse(verseKey, response)
+    } catch {
+      setMessages([...newMessages, { role: "assistant", content: "Unable to reach the AI service. Please check your connection." }])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
