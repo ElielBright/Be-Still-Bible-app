@@ -7,13 +7,17 @@ import { BOOK_CHAPTER_COUNT } from "@/lib/bible-api"
 
 export default function BibleChapterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ book: string; chapter: string }>
+  searchParams: Promise<{ verse?: string }>
 }) {
   const { book, chapter } = use(params)
+  const { verse } = use(searchParams)
   const router = useRouter()
   const chapterNum = parseInt(chapter)
   const decodedBook = decodeURIComponent(book)
+  const highlightVerse = verse ? parseInt(verse) : undefined
 
   const handleChapterChange = (newChapter: number) => {
     const maxChapter = BOOK_CHAPTER_COUNT[decodedBook]
@@ -26,6 +30,7 @@ export default function BibleChapterPage({
     <BibleReader
       book={decodedBook}
       chapter={chapterNum}
+      highlightVerse={highlightVerse}
       onChapterChange={handleChapterChange}
       onNavigateBook={() => router.push("/bible")}
     />

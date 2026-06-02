@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 
 const YOUTUBE_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
 const OLLAMA_API_KEY = process.env.NEXT_PUBLIC_OLLAMA_API_KEY
-const OLLAMA_ENDPOINT = process.env.NEXT_PUBLIC_OLLAMA_ENDPOINT || "https://api.ollama.com/v1"
+const OLLAMA_ENDPOINT = "https://api.ollama.com"
+const MODEL = "ministral-3:8b"
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
@@ -41,24 +42,24 @@ Write a 4–6 sentence sermon summary covering:
 Be encouraging, faith-building, and concise.`
 
   try {
-    const aiRes = await fetch(`${OLLAMA_ENDPOINT}/chat/completions`, {
+    const aiRes = await fetch(`${OLLAMA_ENDPOINT}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OLLAMA_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama3",
+        model: MODEL,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 400,
-        temperature: 0.7,
+        stream: false,
+        options: { num_predict: 400, temperature: 0.7 },
       }),
     })
 
     if (!aiRes.ok) throw new Error("AI service unavailable")
 
     const aiData = await aiRes.json()
-    const summary = aiData.choices?.[0]?.message?.content?.trim()
+    const summary = aiData.message?.content?.trim()
     if (!summary) throw new Error("Empty response")
 
     return NextResponse.json({ summary })

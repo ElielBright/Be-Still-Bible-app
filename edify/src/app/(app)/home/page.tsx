@@ -55,7 +55,10 @@ export default function HomePage() {
 
       <Card className="border-l-4 border-l-primary">
         <CardContent className="p-4">
-          <Link href={`/bible`} className="group flex items-center justify-between">
+          <Link
+            href={`/bible/${encodeURIComponent(verse.book)}/${verse.chapter}?verse=${verse.verse}`}
+            className="group flex items-center justify-between"
+          >
             <div>
               <p className="text-xs text-muted-foreground">Verse of the Day</p>
               <p className="mt-1 text-lg font-medium">&ldquo;{verse.text}&rdquo;</p>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Send, Loader2 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 import type { AIChatMessage } from "@/lib/ollama"
 import { cacheAIResponse, getCachedAIResponse } from "@/lib/offline"
 
@@ -37,7 +38,7 @@ export function VerseChat({ book, chapter, verse, verseText, onClose }: VerseCha
   useEffect(() => {
     const verseKey = `${book}:${chapter}:${verse}`
     getCachedAIResponse(verseKey).then((cached) => {
-      if (cached) {
+      if (cached && !cached.toLowerCase().includes("unable to reach") && !cached.toLowerCase().includes("having trouble connecting")) {
         setMessages([{ role: "assistant", content: cached }])
       }
     })
@@ -60,12 +61,12 @@ export function VerseChat({ book, chapter, verse, verseText, onClose }: VerseCha
         }),
       })
       const data = await res.json()
-      const response = data.response || "Sorry, I couldn't generate a response."
+      const response = data.response || data.error || "Sorry, I couldn't generate a response."
       setMessages([...newMessages, { role: "assistant", content: response }])
       const verseKey = `${book}:${chapter}:${verse}`
-      await cacheAIResponse(verseKey, response)
+      if (data.response) await cacheAIResponse(verseKey, response)
     } catch {
-      setMessages([...newMessages, { role: "assistant", content: "Unable to reach the AI service. Please check your connection." }])
+      setMessages([...newMessages, { role: "assistant", content: "Unable to reach the AI service. The server might be offline." }])
     } finally {
       setLoading(false)
     }
@@ -104,10 +105,14 @@ export function VerseChat({ book, chapter, verse, verseText, onClose }: VerseCha
               className={`rounded-lg px-3 py-2 text-sm ${
                 msg.role === "user"
                   ? "bg-primary text-primary-foreground ml-8"
-                  : "bg-muted mr-8"
+                  : "bg-muted mr-8 prose prose-sm dark:prose-invert max-w-none"
               }`}
             >
-              {msg.content}
+              {msg.role === "user" ? (
+                msg.content
+              ) : (
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              )}
             </div>
           ))}
 

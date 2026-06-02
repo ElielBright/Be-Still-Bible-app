@@ -10,6 +10,12 @@ export const BIBLE_TRANSLATIONS = [
   { id: "nlt", code: "NLT", name: "New Living Translation", free: false },
   { id: "msg", code: "MSG", name: "The Message", free: false },
   { id: "asv", code: "ASV", name: "American Standard Version", free: true },
+  { id: "bsb", code: "BSB", name: "Berean Standard Bible", free: true },
+  { id: "t4t", code: "T4T", name: "Translation for Translators", free: true },
+  { id: "gnt", code: "GNT", name: "Good News Translation", free: false },
+  { id: "amp", code: "AMP", name: "Amplified Bible", free: false },
+  { id: "erv", code: "ERV", name: "Easy-to-Read Version", free: false },
+  { id: "rvr1960", code: "RVR1960", name: "Reina Valera 1960 (Spanish)", free: true },
 ]
 
 export const BOOKS = [
@@ -58,6 +64,57 @@ const BOLLS_MAP: Record<string, string> = {
   msg: "1531",
 }
 
+// Map translation IDs to wldeh version IDs
+const WLDEH_MAP: Record<string, string> = {
+  web: "en-web",
+  asv: "en-asv",
+  darby: "en-darby",
+  bsb: "en-bsb",
+  t4t: "en-t4t",
+  gnt: "en-t4t",
+  erv: "en-t4t",
+  rvr1960: "es-rv09",
+}
+
+// Map English book names to Spanish book names for RV09
+const SPANISH_BOOK_MAP: Record<string, string> = {
+  Genesis: "génesis", Exodus: "éxodo", Leviticus: "levítico", Numbers: "números",
+  Deuteronomy: "deuteronomio", Joshua: "josué", Judges: "jueces", Ruth: "rut",
+  "1 Samuel": "1samuel", "2 Samuel": "2samuel", "1 Kings": "1reyes", "2 Kings": "2reyes",
+  "1 Chronicles": "1crónicas", "2 Chronicles": "2crónicas", Ezra: "esdras",
+  Nehemiah: "nehemías", Esther: "ester", Job: "job", Psalms: "salmos",
+  Proverbs: "proverbios", Ecclesiastes: "eclesiastés", "Song of Solomon": "cantares",
+  Isaiah: "isaías", Jeremiah: "jeremías", Lamentations: "lamentaciones",
+  Ezekiel: "ezequiel", Daniel: "daniel", Hosea: "oseas", Joel: "joel",
+  Amos: "amós", Obadiah: "abdías", Jonah: "jonás", Micah: "miqueas",
+  Nahum: "nahúm", Habakkuk: "habacuc", Zephaniah: "sofonías", Haggai: "hageo",
+  Zechariah: "zacarías", Malachi: "malaquías", Matthew: "sanmateo",
+  Mark: "sanmarcos", Luke: "sanlucas", John: "sanjuan", Acts: "hechos",
+  Romans: "romanos", "1 Corinthians": "1corintios", "2 Corinthians": "2corintios",
+  Galatians: "gálatas", Ephesians: "efesios", Philippians: "filipenses",
+  Colossians: "colosenses", "1 Thessalonians": "1tesalonicenses",
+  "2 Thessalonians": "2tesalonicenses", "1 Timothy": "1timoteo",
+  "2 Timothy": "2timoteo", Titus: "tito", Philemon: "filemón",
+  Hebrews: "hebreos", James: "santiago", "1 Peter": "1pedro", "2 Peter": "2pedro",
+  "1 John": "1juan", "2 John": "2juan", "3 John": "3juan", Jude: "judas",
+  Revelation: "apocalipsis",
+}
+
+function bookNameFor(translationId: string, book: string): string {
+  if (translationId === "rvr1960") {
+    return SPANISH_BOOK_MAP[book] || book.toLowerCase()
+  }
+  return book.toLowerCase()
+}
+
+function getWldehId(translationId: string): string | null {
+  // Direct wldeh mapping
+  if (WLDEH_MAP[translationId]) return WLDEH_MAP[translationId]
+  // Try the translation ID itself (e.g., "en-kjv")
+  const direct = `en-${translationId}`
+  return direct
+}
+
 async function fetchFromBibleAPI(book: string, chapter: number): Promise<BibleChapter | null> {
   const resp = await fetch(
     `https://bible-api.com/${encodeURIComponent(book)}+${chapter}?verse-numbers=true`
@@ -75,16 +132,40 @@ async function fetchFromBibleAPI(book: string, chapter: number): Promise<BibleCh
 async function fetchFromBolls(translationId: string, book: string, chapter: number): Promise<BibleChapter | null> {
   const bollsId = BOLLS_MAP[translationId]
   if (!bollsId) return null
-  const resp = await fetch(
-    `https://bolls.life/api/v1/text/${bollsId}/${encodeURIComponent(book)}/${chapter}/`
-  )
-  if (!resp.ok) return null
-  const data = await resp.json()
-  return {
-    book,
-    chapter,
-    verses: data.map((v: any) => ({ number: v.verse, text: v.text })),
-    translation: translationId,
+  try {
+    const resp = await fetch(
+      `https://bolls.life/api/v1/text/${bollsId}/${encodeURIComponent(book)}/${chapter}/`
+    )
+    if (!resp.ok) return null
+    const data = await resp.json()
+    return {
+      book,
+      chapter,
+      verses: data.map((v: any) => ({ number: v.verse, text: v.text })),
+      translation: translationId,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function fetchFromWldeh(translationId: string, book: string, chapter: number): Promise<BibleChapter | null> {
+  const wldehId = getWldehId(translationId)
+  if (!wldehId) return null
+  const bookName = bookNameFor(translationId, book)
+  const url = `https://raw.githubusercontent.com/wldeh/bible-api/master/bibles/${wldehId}/books/${bookName}/chapters/${chapter}.json`
+  try {
+    const resp = await fetch(url, { headers: { "User-Agent": "edify-bible" } })
+    if (!resp.ok) return null
+    const data = await resp.json()
+    return {
+      book,
+      chapter,
+      verses: data.data.map((v: any) => ({ number: parseInt(v.verse), text: v.text })),
+      translation: translationId,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -94,11 +175,15 @@ export async function fetchChapter(
   chapter: number
 ): Promise<BibleChapter | null> {
   try {
-    if (translationId === "kjv") {
-      return await fetchFromBibleAPI(book, chapter)
-    }
+    // Try wldeh first for translations that have it
+    const wldeh = await fetchFromWldeh(translationId, book, chapter)
+    if (wldeh) return wldeh
+
+    // Try bolls.life for translations that have it
     const bolls = await fetchFromBolls(translationId, book, chapter)
     if (bolls) return bolls
+
+    // Fall back to bible-api.com (always returns KJV text)
     return await fetchFromBibleAPI(book, chapter)
   } catch {
     return null

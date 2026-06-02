@@ -12,7 +12,25 @@ export function getTimeOfDayGreeting(): string {
   return "Good evening"
 }
 
-export function getTodayVerse(): { reference: string; text: string } {
+export interface TodayVerse {
+  reference: string
+  text: string
+  book: string
+  chapter: number
+  verse: number
+}
+
+function parseReference(ref: string): { book: string; chapter: number; verse: number } {
+  const match = ref.match(/^(\d?\s*\w+[\s\w]*?)\s*(\d+):(\d+)$/)
+  if (!match) return { book: "John", chapter: 3, verse: 16 }
+  return {
+    book: match[1].trim(),
+    chapter: parseInt(match[2]),
+    verse: parseInt(match[3]),
+  }
+}
+
+export function getTodayVerse(): TodayVerse {
   const verses = [
     { reference: "Philippians 4:13", text: "I can do all things through Christ who strengthens me." },
     { reference: "Jeremiah 29:11", text: "For I know the plans I have for you, declares the Lord, plans for welfare and not for evil, to give you a future and a hope." },
@@ -23,5 +41,7 @@ export function getTodayVerse(): { reference: string; text: string } {
     { reference: "2 Corinthians 5:17", text: "Therefore, if anyone is in Christ, he is a new creation; old things have passed away; behold, all things have become new." },
   ]
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-  return verses[dayOfYear % verses.length]
+  const v = verses[dayOfYear % verses.length]
+  const parsed = parseReference(v.reference)
+  return { ...v, ...parsed }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const OLLAMA_API_KEY = process.env.NEXT_PUBLIC_OLLAMA_API_KEY
-const OLLAMA_ENDPOINT = process.env.NEXT_PUBLIC_OLLAMA_ENDPOINT || "https://api.ollama.com/v1"
+const OLLAMA_BASE = "https://api.ollama.com"
+const MODEL = "ministral-3:8b"
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,27 +18,30 @@ export async function POST(request: NextRequest) {
 
     const fullMessages = [{ role: "system", content: systemPrompt }, ...messages]
 
-    const response = await fetch(`${OLLAMA_ENDPOINT}/chat/completions`, {
+    const response = await fetch(`${OLLAMA_BASE}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OLLAMA_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama3",
+        model: MODEL,
         messages: fullMessages,
-        max_tokens: 500,
-        temperature: 0.7,
+        stream: false,
+        options: { num_predict: 500, temperature: 0.7 },
       }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      return NextResponse.json({ error: "Ollama API error", details: errorText }, { status: response.status })
+      const message = response.status === 401
+        ? "Your Ollama API key is invalid or expired. Please check your key at ollama.com."
+        : `Ollama API error (${response.status}): ${errorText}`
+      return NextResponse.json({ error: message }, { status: 502 })
     }
 
     const data = await response.json()
-    return NextResponse.json({ response: data.choices?.[0]?.message?.content || "No response generated." })
+    return NextResponse.json({ response: data.message?.content || "No response generated." })
   } catch (error) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

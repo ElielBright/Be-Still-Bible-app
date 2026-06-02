@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { fetchChapter, BibleChapter, fetchVerse } from "@/lib/bible-api"
 import { cacheChapter, getCachedChapter, saveHighlightLocally, saveNoteLocally } from "@/lib/offline"
-import { addHighlight, addNote } from "@/lib/firestore"
+import { addHighlight, addNote, getUserHighlights } from "@/lib/firestore"
 import { TranslationSwitcher } from "./translation-switcher"
 import { VersePopup } from "./verse-popup"
 import { VerseChat } from "@/components/ai/verse-chat"
@@ -28,11 +28,12 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 interface BibleReaderProps {
   book: string
   chapter: number
+  highlightVerse?: number
   onChapterChange: (chapter: number) => void
   onNavigateBook: () => void
 }
 
-export function BibleReader({ book, chapter, onChapterChange, onNavigateBook }: BibleReaderProps) {
+export function BibleReader({ book, chapter, highlightVerse, onChapterChange, onNavigateBook }: BibleReaderProps) {
   const router = useRouter()
   const { user } = useAuth()
   const { showToast } = useToast()
@@ -51,6 +52,7 @@ export function BibleReader({ book, chapter, onChapterChange, onNavigateBook }: 
   const [crossRefs, setCrossRefs] = useState<string[]>([])
   const [bookResults, setBookResults] = useState<any[]>([])
   const [loadingBooks, setLoadingBooks] = useState(false)
+  const [highlights, setHighlights] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const load = async () => {
@@ -70,6 +72,29 @@ export function BibleReader({ book, chapter, onChapterChange, onNavigateBook }: 
     }
     load()
   }, [translation, book, chapter])
+
+  // Load highlights for this chapter
+  useEffect(() => {
+    if (!user) return
+    getUserHighlights(user.uid).then((allHighlights) => {
+      const chapterKey = `${book}:${chapter}`
+      const chapterHighlights: Record<string, string> = {}
+      allHighlights.forEach((h) => {
+        if (h.book === book && h.chapter === chapter) {
+          chapterHighlights[h.verse.toString()] = h.color
+        }
+      })
+      setHighlights(chapterHighlights)
+    }).catch(() => {})
+  }, [user, book, chapter])
+
+  // Auto-select highlightVerse after data loads
+  useEffect(() => {
+    if (highlightVerse && data) {
+      const v = data.verses.find((v) => v.number === highlightVerse)
+      if (v) setSelectedVerse(v)
+    }
+  }, [highlightVerse, data])
 
   const onSearchSermons = () => {
     if (!selectedVerse) return
@@ -162,6 +187,8 @@ export function BibleReader({ book, chapter, onChapterChange, onNavigateBook }: 
       await saveHighlightLocally(highlight)
       showToast("Highlight saved offline", "info")
     }
+    // Update local state immediately
+    setHighlights((prev) => ({ ...prev, [selectedVerse.number.toString()]: color }))
     setShowColorPicker(false)
   }
 
@@ -236,20 +263,24 @@ export function BibleReader({ book, chapter, onChapterChange, onNavigateBook }: 
           </Button>
         </div>
 
-        <div className="space-y-3">
-          {data?.verses.map((verse) => (
-            <button
-              key={verse.number}
-              onClick={() => setSelectedVerse(verse)}
-              className="group flex w-full gap-2 text-left hover:bg-primary/5 rounded-lg p-1 -mx-1 transition-colors"
-            >
-              <span className="mt-0.5 min-w-8 text-right text-sm text-muted-foreground/50 select-none">
-                {verse.number}
-              </span>
-              <span className="text-base leading-relaxed">{verse.text}</span>
-            </button>
-          ))}
-        </div>
+          <div className="space-y-3">
+            {data?.verses.map((verse) => {
+              const highlightColor = highlights[verse.number.toString()]
+              return (
+                <button
+                  key={verse.number}
+                  onClick={() => setSelectedVerse(verse)}
+                  className="group flex w-full gap-2 text-left rounded-lg p-1 -mx-1 transition-colors"
+                  style={highlightColor ? { backgroundColor: highlightColor } : undefined}
+                >
+                  <span className={`mt-0.5 min-w-8 text-right text-sm select-none ${highlightColor ? 'text-muted-foreground/70' : 'text-muted-foreground/50'}`}>
+                    {verse.number}
+                  </span>
+                  <span className={`text-base leading-relaxed ${highlightColor ? '' : ''}`}>{verse.text}</span>
+                </button>
+              )
+            })}
+          </div>
       </div>
 
       {selectedVerse && !showAI && !showBooks && !showNoteInput && !showColorPicker && !showCrossRefs && (
