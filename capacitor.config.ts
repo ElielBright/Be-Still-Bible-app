@@ -3,20 +3,14 @@ import { CapacitorConfig } from "@capacitor/cli"
 const config: CapacitorConfig = {
   appId: "com.edify.bible",
   appName: "Edify",
-  webDir: ".next",
+  webDir: "public",
   server: {
-    androidScheme: "https",
+    url: "http://localhost:3000",
     cleartext: true,
   },
   plugins: {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
-    },
-  },
-  android: {
-    buildOptions: {
-      keystorePath: undefined,
-      keystoreAlias: undefined,
     },
   },
 }

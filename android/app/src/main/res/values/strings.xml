@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Edify</string>
+    <string name="title_activity_main">Edify</string>
+    <string name="package_name">com.edify.bible</string>
+    <string name="custom_url_scheme">com.edify.bible</string>
+</resources>
