@@ -16,13 +16,17 @@ self.addEventListener("fetch", (event) => {
       return fetch(event.request)
         .then((response) => {
           if (response.status === 200) {
-            const clone = response.clone()
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone)
-            })
+            const url = new URL(event.request.url)
+            if (url.protocol === "http:" || url.protocol === "https:") {
+              const clone = response.clone()
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, clone)
+              })
+            }
           }
           return response
         })
+
         .catch(() => {
           return caches.match(event.request)
         })

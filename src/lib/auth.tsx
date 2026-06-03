@@ -27,6 +27,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false)
+      return
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user)
       setLoading(false)
@@ -35,20 +39,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signInWithGoogle = async () => {
+    if (!auth) return
     await signInWithPopup(auth, googleProvider)
   }
 
   const signInWithEmail = async (email: string, password: string) => {
+    if (!auth) return
     await signInWithEmailAndPassword(auth, email, password)
   }
 
   const signUpWithEmail = async (email: string, password: string) => {
+    if (!auth) return
     await createUserWithEmailAndPassword(auth, email, password)
   }
 
   const logout = async () => {
+    if (!auth) return
     await signOut(auth)
   }
+
 
   return (
     <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, logout }}>
