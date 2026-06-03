@@ -1,7 +1,6 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore"
-import { app } from "./firebase"
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore"
+import { db } from "./firebase"
 
-const db = getFirestore(app)
 
 export type UserProfile = {
   display_name: string
