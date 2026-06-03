@@ -1,6 +1,6 @@
 "use client"
 
-import { Sidebar } from "./sidebar"
+import { Sidebar, MobileBottomNav } from "./sidebar"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -28,7 +28,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="ml-64 flex-1 bg-background p-8">{children}</main>
+      <main className="flex-1 bg-background md:ml-64 pb-20 md:pb-0 p-4 md:p-8">
+        {children}
+      </main>
+      <MobileBottomNav />
     </div>
   )
 }

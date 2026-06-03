@@ -10,7 +10,7 @@ import { useState, useEffect } from "react"
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const [translation, setTranslation] = useState("de4e12af7f28f599-01")
+  const [translation, setTranslation] = useState("kjv")
 
   useEffect(() => {
     if (user) {

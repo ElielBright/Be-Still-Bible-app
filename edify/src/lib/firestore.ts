@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc, Timestamp } from "firebase/firestore"
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc } from "firebase/firestore"
 import { app } from "./firebase"
 
 const db = getFirestore(app)
@@ -71,6 +71,11 @@ export async function getUserNotes(userId: string): Promise<Note[]> {
 export async function addNote(note: Omit<Note, "id">) {
   const docRef = await addDoc(collection(db, "notes"), note)
   return docRef.id
+}
+
+export async function updateNote(noteId: string, data: Partial<Note>) {
+  const docRef = doc(db, "notes", noteId)
+  await updateDoc(docRef, data)
 }
 
 export async function getUserHighlights(userId: string): Promise<Highlight[]> {

@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 
-const navItems = [
+export const navItems = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/bible", label: "Bible", icon: BookOpen },
   { href: "/sermons", label: "Sermons", icon: Search },
@@ -30,7 +30,7 @@ export function Sidebar() {
   const { user, logout } = useAuth()
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r bg-card">
+    <aside className="hidden md:flex fixed left-0 top-0 z-40 h-screen w-64 flex-col border-r bg-card">
       <div className="flex items-center gap-2 border-b px-6 py-5">
         <Cross className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold">Edify</span>
@@ -73,5 +73,33 @@ export function Sidebar() {
         </Button>
       </div>
     </aside>
+  )
+}
+
+export function MobileBottomNav() {
+  const pathname = usePathname()
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-background md:hidden safe-area-bottom">
+      {navItems.map((item) => {
+        const Icon = item.icon
+        const isActive = pathname.startsWith(item.href)
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+              isActive
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="h-5 w-5" />
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

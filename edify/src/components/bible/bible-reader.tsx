@@ -323,15 +323,22 @@ export function BibleReader({ book, chapter, highlightVerse, onChapterChange, on
               ) : (
                 <div className="space-y-3">
                   {bookResults.map((book, i) => (
-                    <div key={i} className="flex gap-3 rounded-lg border p-3">
+                    <a
+                      key={i}
+                      href={`https://openlibrary.org/search?q=${encodeURIComponent(book.title + " " + book.author)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex gap-3 rounded-lg border p-3 hover:bg-accent transition-colors"
+                    >
                       {book.coverUrl && (
-                        <img src={book.coverUrl} alt={book.title} className="h-16 w-12 rounded object-cover" />
+                        <img src={book.coverUrl} alt={book.title} className="h-16 w-12 rounded object-cover shrink-0" />
                       )}
                       <div>
                         <p className="text-sm font-medium">{book.title}</p>
                         <p className="text-xs text-muted-foreground">{book.author}</p>
+                        <p className="text-xs text-primary mt-1">Find on OpenLibrary →</p>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               )}
