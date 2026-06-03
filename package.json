@@ -16,6 +16,7 @@
     "cap:build": "next build && npx cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
     "@distube/ytdl-core": "^4.16.12",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.15",
